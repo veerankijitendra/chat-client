@@ -53,8 +53,11 @@ export default function ChatPage() {
             } else {
                setError(response.message || "Failed to load messages");
             }
-         } catch (err: any) {
-            setError(err.response?.data?.message || "Error loading messages");
+         } catch (err: unknown) {
+            setError(
+               (err as { response?: { data?: { message?: string } } }).response
+                  ?.data?.message || "Error loading messages"
+            );
          }
       };
       fetchMessages();
@@ -80,9 +83,10 @@ export default function ChatPage() {
             }
          }
       );
-
-      socket.on("error", (err: any) => {
-         setError(err.message || "Socket operation failed");
+      socket.on("error", (err: unknown) => {
+         setError(
+            (err as { message: string }).message || "Socket operation failed"
+         );
       });
 
       return () => {
@@ -105,6 +109,7 @@ export default function ChatPage() {
          form.reset();
       } catch (err) {
          setError("Error sending message");
+         console.log(err);
       }
    };
 

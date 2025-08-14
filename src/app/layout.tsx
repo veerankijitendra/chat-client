@@ -44,7 +44,12 @@ export default function RootLayout({
                   router.push("/");
                }
             }
-         } catch (err: any) {
+         } catch (error: unknown) {
+            const err = error as {
+               response?: {
+                  data: { message?: string; error?: { code?: number } };
+               };
+            };
             const message =
                err.response?.data?.message || "Error validating token";
             const code = err.response?.data?.error?.code;

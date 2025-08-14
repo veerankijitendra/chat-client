@@ -26,6 +26,7 @@ export default function ChatsPage() {
             }
          } catch (err) {
             setError("Error loading chat rooms");
+            console.error(err);
          }
       };
       fetchChatRooms();
