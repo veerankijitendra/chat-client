@@ -72,7 +72,7 @@ export default function Home() {
             setShowVerify(true);
             setSuccess("Sign-up successful. Check your email for OTP.");
             setError(null);
-            router.replace("/chat");
+            router.replace("/chats");
          } else {
             setError(response.message || "Failed to sign up");
          }
@@ -104,7 +104,7 @@ export default function Home() {
             localStorage.setItem("token", response.data!.token);
             setSuccess("Login successful");
             setError(null);
-            router.replace("/chat");
+            router.replace("/chats");
 
             // Redirect to chat or dashboard
          } else {
