@@ -1,103 +1,275 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createUser, login as apiLogin, verifyOTP } from "@/utils/api"; // Add login to api.ts
+import Link from "next/link";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Add tabs: npx shadcn-ui@latest add tabs
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+   Form,
+   FormControl,
+   FormField,
+   FormItem,
+   FormLabel,
+   FormMessage,
+} from "@/components/ui/form";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+const signupSchema = z.object({
+   username: z.string().min(3, "Username must be at least 3 characters"),
+   email: z.string().email("Invalid email address"),
+   password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const loginSchema = z.object({
+   email: z.string().email("Invalid email address"),
+   password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const verifySchema = z.object({
+   email: z.string().email("Invalid email address"),
+   otp: z.string().length(6, "OTP must be 6 digits"),
+});
+
+type SignupFormData = z.infer<typeof signupSchema>;
+type LoginFormData = z.infer<typeof loginSchema>;
+type VerifyFormData = z.infer<typeof verifySchema>;
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+   const [userId, setUserId] = useState<string | null>(null);
+   const [error, setError] = useState<string | null>(null);
+   const [success, setSuccess] = useState<string | null>(null);
+   const [token, setToken] = useState<string | null>(null);
+   const [showVerify, setShowVerify] = useState(false);
+   const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+   const signupForm = useForm<SignupFormData>({
+      resolver: zodResolver(signupSchema),
+      defaultValues: { username: "", email: "", password: "" },
+   });
+
+   const loginForm = useForm<LoginFormData>({
+      resolver: zodResolver(loginSchema),
+      defaultValues: { email: "", password: "" },
+   });
+
+   const verifyForm = useForm<VerifyFormData>({
+      resolver: zodResolver(verifySchema),
+      defaultValues: { email: "", otp: "" },
+   });
+
+   const onSignup = async (data: SignupFormData) => {
+      try {
+         const response = await createUser(data);
+         if (response.status === "success") {
+            setUserId(response.data!.user.id);
+            setShowVerify(true);
+            setSuccess("Sign-up successful. Check your email for OTP.");
+            setError(null);
+            router.replace("/chat");
+         } else {
+            setError(response.message || "Failed to sign up");
+         }
+      } catch (err) {
+         setError("Error signing up");
+      }
+   };
+
+   const onVerify = async (data: VerifyFormData) => {
+      try {
+         const response = await verifyOTP(data); // Add verifyOTP to api.ts
+         if (response.status === "success") {
+            setSuccess("Account verified. You can now log in.");
+            setShowVerify(false);
+            setError(null);
+         } else {
+            setError(response.message || "Failed to verify");
+         }
+      } catch (err) {
+         setError("Error verifying OTP");
+      }
+   };
+
+   const onLogin = async (data: LoginFormData) => {
+      try {
+         const response = await apiLogin(data);
+         if (response.status === "success") {
+            setToken(response.data!.token);
+            localStorage.setItem("token", response.data!.token);
+            setSuccess("Login successful");
+            setError(null);
+            router.replace("/chat");
+
+            // Redirect to chat or dashboard
+         } else {
+            setError(response.message || "Failed to login");
+         }
+      } catch (err) {
+         setError("Error logging in");
+      }
+   };
+
+   return (
+      <div className="container mx-auto p-4">
+         <h1 className="text-2xl font-bold mb-4">User Authentication</h1>
+
+         <Tabs defaultValue="signup">
+            <TabsList>
+               <TabsTrigger value="signup">Sign Up</TabsTrigger>
+               <TabsTrigger value="login">Login</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="signup">
+               <Form {...signupForm}>
+                  <form
+                     onSubmit={signupForm.handleSubmit(onSignup)}
+                     className="space-y-4"
+                  >
+                     <FormField
+                        control={signupForm.control}
+                        name="username"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Username</FormLabel>
+                              <FormControl>
+                                 <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                     <FormField
+                        control={signupForm.control}
+                        name="email"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                 <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                     <FormField
+                        control={signupForm.control}
+                        name="password"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Password</FormLabel>
+                              <FormControl>
+                                 <Input type="password" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                     <Button type="submit">Sign Up</Button>
+                  </form>
+               </Form>
+
+               {showVerify && (
+                  <Form {...verifyForm}>
+                     <form
+                        onSubmit={verifyForm.handleSubmit(onVerify)}
+                        className="space-y-4 mt-4"
+                     >
+                        <FormField
+                           control={verifyForm.control}
+                           name="email"
+                           render={({ field }) => (
+                              <FormItem>
+                                 <FormLabel>Email</FormLabel>
+                                 <FormControl>
+                                    <Input {...field} />
+                                 </FormControl>
+                                 <FormMessage />
+                              </FormItem>
+                           )}
+                        />
+                        <FormField
+                           control={verifyForm.control}
+                           name="otp"
+                           render={({ field }) => (
+                              <FormItem>
+                                 <FormLabel>OTP</FormLabel>
+                                 <FormControl>
+                                    <Input {...field} />
+                                 </FormControl>
+                                 <FormMessage />
+                              </FormItem>
+                           )}
+                        />
+                        <Button type="submit">Verify OTP</Button>
+                     </form>
+                  </Form>
+               )}
+            </TabsContent>
+
+            <TabsContent value="login">
+               <Form {...loginForm}>
+                  <form
+                     onSubmit={loginForm.handleSubmit(onLogin)}
+                     className="space-y-4"
+                  >
+                     <FormField
+                        control={loginForm.control}
+                        name="email"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Email</FormLabel>
+                              <FormControl>
+                                 <Input {...field} />
+                              </FormControl>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                     <FormField
+                        control={loginForm.control}
+                        name="password"
+                        render={({ field }) => (
+                           <FormItem>
+                              <FormLabel>Password</FormLabel>
+                              <FormControl>
+                                 <Input type="password" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                           </FormItem>
+                        )}
+                     />
+                     <Button type="submit">Login</Button>
+                  </form>
+               </Form>
+            </TabsContent>
+         </Tabs>
+
+         {error && (
+            <Alert variant="destructive" className="mt-4">
+               <AlertCircle className="h-4 w-4" />
+               <AlertTitle>Error</AlertTitle>
+               <AlertDescription>{error}</AlertDescription>
+            </Alert>
+         )}
+
+         {success && (
+            <Alert variant="default" className="mt-4">
+               <AlertTitle>Success</AlertTitle>
+               <AlertDescription>{success}</AlertDescription>
+            </Alert>
+         )}
+
+         {token && (
+            <p className="mt-4">
+               Logged in! Token: {token.substring(0, 20)}... Use for chat.
+            </p>
+         )}
+      </div>
+   );
 }
